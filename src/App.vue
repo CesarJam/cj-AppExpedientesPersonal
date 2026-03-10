@@ -93,22 +93,30 @@ const toggleTema = () => {
 
   <div v-else class="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
     <nav
-      class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-3 mb-4 flex items-center justify-between shadow-sm sticky top-0 z-10 transition-colors duration-300">
-      <div class="flex items-center gap-3">
-        <span class="text-xl font-bold text-blue-600 tracking-tight">Consejería Jurídica del Poder Ejecutivo - Expedientes de Personal</span>
-        <span class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 font-mono">
-          {{ session.user.email }}
+      class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-2 mb-4 flex items-center justify-between shadow-sm sticky top-0 z-10 transition-colors duration-300">
+      <div class="flex items-center gap-4">
+        <img src="/src/images/logo.png" alt="Logo"
+          class="h-14 w-auto object-contain drop-shadow-sm dark:brightness-110 transition-all" />
 
-        </span>
+        <div class="flex flex-col md:flex-row md:items-center md:gap-3">
+          <span class="text-sm md:text-lg font-bold text-blue-600 dark:text-blue-400 tracking-tight leading-none">
+            Consejería Jurídica - Expedientes
+          </span>
+          <span class="hidden md:inline text-gray-300 dark:text-gray-600">|</span>
+          <span
+            class="text-[10px] md:text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800 font-mono w-fit">
+            {{ session.user.email }}
+          </span>
+        </div>
+
         <button @click="toggleTema"
-          class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-yellow-400 hover:bg-gray-300 dark:hover:bg-gray-600 transition shadow-sm"
+          class="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-yellow-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition shadow-sm"
           title="Cambiar tema">
           <svg v-if="!isDark" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
             stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
           </svg>
-
           <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
             stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -117,9 +125,8 @@ const toggleTema = () => {
         </button>
       </div>
 
-
       <button @click="cerrarSesion"
-        class="text-sm text-red-500 hover:text-red-700 font-medium transition hover:bg-red-50 px-3 py-1 rounded">
+        class="text-xs md:text-sm text-red-500 hover:text-red-700 font-bold transition hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-1.5 rounded-lg border border-transparent hover:border-red-100 dark:hover:border-red-900/40">
         Cerrar Sesión
       </button>
     </nav>
