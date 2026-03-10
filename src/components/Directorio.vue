@@ -1,0 +1,204 @@
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { supabase } from '../supabase'
+import ModalEmpleado from './ModalEmpleado.vue'
+
+const emit = defineEmits(['seleccionar'])
+const empleados = ref([])
+const cargando = ref(true)
+const mostrarModal = ref(false)
+const empleadoAEditar = ref(null) // Nueva variable para el empleado seleccionado
+const busqueda = ref('')
+
+const empleadosFiltrados = computed(() => {
+  // Si la barra está vacía, mostramos todos
+  if (!busqueda.value) return empleados.value
+  
+  // Convertimos a minúsculas para que no importe si escribes MAYÚSCULAS o minúsculas
+  const texto = busqueda.value.toLowerCase()
+  
+  // Filtramos por nombre_completo o rfc o area de adscripcion
+  return empleados.value.filter(emp => 
+    (emp.nombre_completo || '').toLowerCase().includes(texto) || 
+    (emp.rfc || '').toLowerCase().includes(texto) || 
+    (emp.adscripcion || '').toLowerCase().includes(texto)
+  )
+})
+
+const obtenerEmpleados = async () => {
+  try {
+    cargando.value = true
+    const { data, error } = await supabase.from('empleados').select('*').order('nombre_completo')
+    if (error) throw error
+    empleados.value = data
+  } catch (error) {
+    alert('Error: ' + error.message)
+  } finally {
+    cargando.value = false
+  }
+}
+
+// Función para abrir modal en modo "Nuevo"
+const abrirNuevo = () => {
+  empleadoAEditar.value = null
+  mostrarModal.value = true
+}
+
+// Función para abrir modal en modo "Editar"
+const abrirEditar = (empleado) => {
+  empleadoAEditar.value = empleado
+  mostrarModal.value = true
+}
+
+onMounted(obtenerEmpleados)
+
+
+// Función para exportar el directorio actual a Excel (CSV)
+const exportarExcel = () => {
+  if (empleadosFiltrados.value.length === 0) return
+
+  const cabeceras = ['Nombre Completo', 'RFC', 'Puesto', 'Adscripción', 'Estatus']
+
+  const filas = empleadosFiltrados.value.map(emp => [
+    `"${emp.nombre_completo || ''}"`, 
+    `"${emp.rfc || ''}"`,
+    `"${emp.puesto || ''}"`,
+    `"${emp.adscripcion || ''}"`,
+    `"${emp.estatus || ''}"`
+  ])
+
+  // AQUÍ ESTÁ EL CAMBIO: Usamos punto y coma (;) en los join
+  const contenidoCSV = [
+    cabeceras.join(';'), 
+    ...filas.map(fila => fila.join(';'))
+  ].join('\n')
+
+  const blob = new Blob(['\ufeff' + contenidoCSV], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+
+  const link = document.createElement('a')
+  link.href = url
+  
+  const fecha = new Date().toISOString().split('T')[0]
+  link.setAttribute('download', `Directorio_Empleados_${fecha}.csv`)
+  
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+</script>
+
+<template>
+  <div class="p-6 max-w-7xl mx-auto transition-colors duration-300">
+    
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <h1 class="text-2xl font-bold text-gray-800 dark:text-white transition-colors duration-300">Directorio de Personal</h1>
+      
+      <div class="flex items-center gap-4 w-full md:w-auto">
+        
+        <div class="relative w-full md:w-72">
+          <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400 dark:text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input 
+            v-model="busqueda" 
+            type="text" 
+            placeholder="Buscar por nombre o RFC..." 
+            class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+          >
+          <button 
+            v-if="busqueda" 
+            @click="busqueda = ''" 
+            class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            &times;
+          </button>
+        </div>
+
+        <button 
+          @click="exportarExcel" 
+          :disabled="empleadosFiltrados.length === 0"
+          class="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md transition font-medium whitespace-nowrap shrink-0 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Descargar directorio actual"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span class="hidden sm:inline">Exportar</span>
+        </button>
+
+        <button @click="abrirNuevo" class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md transition font-medium whitespace-nowrap shrink-0">
+          + Nuevo Empleado
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+      <table class="w-full text-left">
+        <thead class="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs uppercase font-bold border-b border-gray-200 dark:border-gray-700">
+          <tr>
+            <th class="p-4">Nombre</th>
+            <th class="p-4">RFC</th>
+            <th class="p-4">Puesto / Adscripción</th>
+            <th class="p-4 text-center">Estatus</th>
+            <th class="p-4 text-center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+          
+          <tr v-if="cargando">
+            <td colspan="5" class="p-8 text-center text-gray-400 font-medium">Cargando directorio...</td>
+          </tr>
+
+          <tr v-else-if="empleadosFiltrados.length === 0">
+            <td colspan="5" class="p-8 text-center text-gray-500 dark:text-gray-400">
+              <p class="font-medium text-lg">No se encontraron empleados.</p>
+              <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Intenta con otro nombre o RFC.</p>
+            </td>
+          </tr>
+
+          <tr v-for="emp in empleadosFiltrados" :key="emp.id" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition group">
+            <td class="p-4">
+              <div class="flex items-center gap-3">
+                <img v-if="emp.foto_url" :src="emp.foto_url" class="h-8 w-8 rounded-full object-cover shadow-sm border border-gray-200 dark:border-gray-600" />
+                <div v-else class="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shadow-sm border border-blue-200 dark:border-blue-800">
+                  {{ emp.nombre_completo.charAt(0) }}
+                </div>
+                <span class="font-medium text-gray-900 dark:text-gray-100">{{ emp.nombre_completo }}</span>
+              </div>
+            </td>
+            <td class="p-4 text-xs font-mono text-gray-600 dark:text-gray-400">{{ emp.rfc }}</td>
+            <td class="p-4">
+              <div class="text-sm text-gray-800 dark:text-gray-200">{{ emp.puesto }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ emp.adscripcion }}</div>
+            </td>
+            <td class="p-4 text-center">
+              <span :class="emp.estatus === 'Activo' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'" class="px-2 py-1 rounded-full text-[10px] font-bold uppercase border">
+                {{ emp.estatus }}
+              </span>
+            </td>
+            <td class="p-4 flex justify-center gap-2">
+              <button @click="abrirEditar(emp)" class="p-2 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition opacity-0 group-hover:opacity-100" title="Editar">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </button>
+              <button @click="$emit('seleccionar', emp)" class="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-lg text-sm font-bold hover:bg-blue-100 dark:hover:bg-blue-800/50 transition border border-blue-100 dark:border-blue-800">
+                Expediente
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <ModalEmpleado 
+      v-if="mostrarModal" 
+      :empleadoSeleccionado="empleadoAEditar"
+      @cerrar="mostrarModal = false"
+      @guardado="obtenerEmpleados"
+    />
+  </div>
+</template>
