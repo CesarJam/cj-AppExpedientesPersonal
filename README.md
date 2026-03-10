@@ -1,4 +1,4 @@
-# 📂 Expedientes Staff - Recursos Humanos
+# 📂  CJ Expediente de Personal - Recursos Humanos
 
 Sistema de gestión web diseñado para digitalizar y organizar los expedientes del personal. Permite a los administradores mantener un control preciso de la documentación requerida para nuevo ingreso y gestionar el estatus de los empleados.
 
