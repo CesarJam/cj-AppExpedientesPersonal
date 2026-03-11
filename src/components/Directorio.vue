@@ -10,20 +10,27 @@ const cargando = ref(true)
 const mostrarModal = ref(false)
 const empleadoAEditar = ref(null) // Nueva variable para el empleado seleccionado
 const busqueda = ref('')
+const filtroPuesto = ref('')
 
 const empleadosFiltrados = computed(() => {
-  // Si la barra está vacía, mostramos todos
-  if (!busqueda.value) return empleados.value
+  const texto = busqueda.value.toLowerCase().trim()
+  const puestoSeleccionado = filtroPuesto.value.toUpperCase() // SUN, BAS, CON
 
-  // Convertimos a minúsculas para que no importe si escribes MAYÚSCULAS o minúsculas
-  const texto = busqueda.value.toLowerCase()
+  return empleados.value.filter(emp => {
+    // 1. Verificamos si coincide con el texto (Nombre, RFC o Adscripción)
+    const coincideTexto = texto === '' ||
+      (emp.nombre_completo || '').toLowerCase().includes(texto) ||
+      (emp.rfc || '').toLowerCase().includes(texto) ||
+      (emp.adscripcion || '').toLowerCase().includes(texto)
 
-  // Filtramos por nombre_completo o rfc o area de adscripcion
-  return empleados.value.filter(emp =>
-    (emp.nombre_completo || '').toLowerCase().includes(texto) ||
-    (emp.rfc || '').toLowerCase().includes(texto) ||
-    (emp.adscripcion || '').toLowerCase().includes(texto)
-  )
+    // 2. Verificamos si coincide con el desplegable de Puesto
+    // Si el filtro está vacío (''), dejamos pasar todos. Si no, verificamos que contenga las siglas.
+    const coincidePuesto = puestoSeleccionado === '' ||
+      (emp.puesto || '').toUpperCase().includes(puestoSeleccionado)
+
+    // El empleado debe cumplir con AMBAS condiciones para aparecer en la tabla
+    return coincideTexto && coincidePuesto
+  })
 })
 
 const obtenerEmpleados = async () => {
@@ -88,10 +95,10 @@ const exportarExcel = () => {
   document.body.removeChild(link)
 
   registrarAuditoria(
-    'EXPORTAR', 
-    'DIRECTORIO', 
-    'Descargó el directorio completo de empleados', 
-    'Múltiples', 
+    'EXPORTAR',
+    'DIRECTORIO',
+    'Descargó el directorio completo de empleados',
+    'Múltiples',
     { total_registros: empleadosFiltrados.value.length }
   )
 }
@@ -115,13 +122,21 @@ const exportarExcel = () => {
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          <input v-model="busqueda" type="text" placeholder="Buscar por nombre o RFC..."
+          <input v-model="busqueda" type="text" placeholder="Buscar por nombre, RFC o área..."
             class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400">
+
           <button v-if="busqueda" @click="busqueda = ''"
             class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
             &times;
           </button>
         </div>
+        <select v-model="filtroPuesto"
+          class="w-full sm:w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm font-medium">
+          <option value="">Todos los puestos</option>
+          <option value="SUN">S.U.N. (Supernumerario)</option>
+          <option value="BAS">B.A.S. (Base)</option>
+          <option value="CON">C.O.N. (Confianza)</option>
+        </select>
 
         <button @click="exportarExcel" :disabled="empleadosFiltrados.length === 0"
           class="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md transition font-medium whitespace-nowrap shrink-0 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
