@@ -14,8 +14,29 @@ const mensajeExito = ref('')
 
 //variables de pdf
 const pdfSeleccionado = ref(null)
-const abrirVisorPDF = (url) => {
-  pdfSeleccionado.value = url
+const abrirVisorPDF = async (urlCompleta) => {
+  try {
+    // 1. Extraemos la ruta interna del archivo (le quitamos el dominio público)
+    const rutaStorage = urlCompleta.split('/expedientes/')[1]
+    
+    if (!rutaStorage) throw new Error("Ruta de archivo no válida")
+
+    // 2. Pedimos a Supabase una URL firmada válida por 60 segundos
+    const { data, error } = await supabase.storage
+      .from('expedientes')
+      .createSignedUrl(rutaStorage, 60)
+
+    if (error) throw error
+
+    // 3. Pasamos esta URL temporal segura a nuestro visor
+    pdfSeleccionado.value = data.signedUrl
+    
+    // Opcional: Registrar en la auditoría que alguien abrió este documento
+    registrarAuditoria('VISUALIZAR', 'EXPEDIENTE_PDF', 'Abrió un documento confidencial', props.empleado.nombre_completo, { archivo: rutaStorage })
+
+  } catch (error) {
+    alert('Error al generar enlace seguro: ' + error.message)
+  }
 }
 const cerrarVisorPDF = () => {
   pdfSeleccionado.value = null

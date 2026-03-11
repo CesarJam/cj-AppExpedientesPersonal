@@ -52,7 +52,15 @@ const quitarFoto = () => {
 // Ayudante para sacar la ruta exacta del archivo en Storage
 const extraerRutaStorage = (url) => {
   if (!url) return null
-  return url.split('/expedientes/')[1]
+  // Si la foto es nueva (en el nuevo bucket)
+  if (url.includes('/fotos_perfil/')) {
+    return url.split('/fotos_perfil/')[1]
+  }
+  // Si la foto era vieja (del bucket de expedientes)
+  if (url.includes('/expedientes/')) {
+    return url.split('/expedientes/')[1]
+  }
+  return null
 }
 
 const guardar = async () => {
@@ -65,24 +73,26 @@ const guardar = async () => {
     if (fotoAnteriorUrl && (archivoFoto.value || fotoEliminada.value)) {
       const rutaAnterior = extraerRutaStorage(fotoAnteriorUrl)
       if (rutaAnterior) {
-        await supabase.storage.from('expedientes').remove([rutaAnterior])
+        // Usamos el bucket correspondiente según dónde estaba guardada
+        const bucketOrigen = fotoAnteriorUrl.includes('/fotos_perfil/') ? 'fotos_perfil' : 'expedientes'
+        await supabase.storage.from(bucketOrigen).remove([rutaAnterior])
       }
     }
 
-    // 2. Si hay una nueva foto, subirla a Storage
+    // 2. Si hay una nueva foto, subirla al NUEVO BUCKET
     if (archivoFoto.value) {
-      // Limpiamos el nombre de acentos y espacios
       const nombreLimpio = archivoFoto.value.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_')
-      const ruta = `fotos_perfil/${Date.now()}_${nombreLimpio}`
+      // Ya no ponemos "fotos_perfil/" en la ruta porque el bucket ya se llama así
+      const ruta = `${Date.now()}_${nombreLimpio}`
 
       const { error: errStorage } = await supabase.storage
-        .from('expedientes')
+        .from('fotos_perfil') // <-- CAMBIO DE BUCKET AQUÍ
         .upload(ruta, archivoFoto.value)
 
       if (errStorage) throw errStorage
 
       const { data: urlData } = supabase.storage
-        .from('expedientes')
+        .from('fotos_perfil') // <-- CAMBIO DE BUCKET AQUÍ
         .getPublicUrl(ruta)
 
       form.value.foto_url = urlData.publicUrl
@@ -130,11 +140,12 @@ const eliminar = async () => {
   try {
     cargando.value = true
 
-    // Si eliminamos al empleado, también borramos su foto de Storage para no dejar basura
+    // Si eliminamos al empleado, también borramos su foto de Storage
     if (props.empleadoSeleccionado.foto_url) {
       const rutaAnterior = extraerRutaStorage(props.empleadoSeleccionado.foto_url)
       if (rutaAnterior) {
-        await supabase.storage.from('expedientes').remove([rutaAnterior])
+        const bucketOrigen = props.empleadoSeleccionado.foto_url.includes('/fotos_perfil/') ? 'fotos_perfil' : 'expedientes'
+        await supabase.storage.from(bucketOrigen).remove([rutaAnterior])
       }
     }
 
