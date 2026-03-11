@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../supabase'
 import ModalEmpleado from './ModalEmpleado.vue'
+import { registrarAuditoria } from '../utils/auditoria'
 
 const emit = defineEmits(['seleccionar'])
 const empleados = ref([])
@@ -85,6 +86,14 @@ const exportarExcel = () => {
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+
+  registrarAuditoria(
+    'EXPORTAR', 
+    'DIRECTORIO', 
+    'Descargó el directorio completo de empleados', 
+    'Múltiples', 
+    { total_registros: empleadosFiltrados.value.length }
+  )
 }
 </script>
 

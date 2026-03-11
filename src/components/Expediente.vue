@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../supabase'
+import { registrarAuditoria } from '../utils/auditoria'
 
 const props = defineProps(['empleado'])
 const emit = defineEmits(['volver'])
@@ -120,6 +121,17 @@ const subirDocumento = async () => {
             }])
 
         if (errorSQL) throw errorSQL
+        registrarAuditoria(
+            'CREAR', 
+            'EXPEDIENTE_PDF', 
+            `Subió un nuevo documento al expediente: ${categoriaSeleccionada.value}`, 
+            props.empleado.nombre_completo, 
+            { 
+                categoria: categoriaSeleccionada.value,
+                archivo: archivo.name,
+                rfc_empleado: props.empleado.rfc
+            }
+        )
         mensajeExito.value = `¡Guardado en ${categoriaSeleccionada.value}!`
         setTimeout(() => {
       mensajeExito.value = ''
@@ -144,6 +156,18 @@ const eliminarDocumento = async (doc) => {
 
         const { error: errorSQL } = await supabase.from('documentos').delete().eq('id', doc.id)
         if (errorSQL) throw errorSQL
+
+        registrarAuditoria(
+            'ELIMINAR', 
+            'EXPEDIENTE_PDF', 
+            `Eliminó un documento del expediente: ${doc.tipo || 'Sin Categoría'}`, 
+            props.empleado.nombre_completo, 
+            { 
+                categoria_eliminada: doc.tipo,
+                archivo_eliminado: doc.nombre_archivo,
+                rfc_empleado: props.empleado.rfc
+            }
+        )
 
         // Éxito
         docConfirmando.value = null // Limpiamos el estado
