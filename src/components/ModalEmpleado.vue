@@ -21,7 +21,8 @@ const form = ref({
   puesto: '',
   adscripcion: '',
   estatus: 'Activo',
-  foto_url: null
+  foto_url: null,
+  contacto_emergencia: ''
 })
 
 onMounted(() => {
@@ -229,7 +230,8 @@ const eliminar = async () => {
           <div>
             <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Puesto</label>
             <input v-model="form.puesto" type="text"
-              class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+              class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              placeholder="Ej. SUN - BAS - CON">
           </div>
           <div>
             <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Estatus</label>
@@ -241,10 +243,17 @@ const eliminar = async () => {
             </select>
           </div>
         </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Adscripción</label>
-          <input v-model="form.adscripcion" type="text"
-            class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Adscripción</label>
+            <input v-model="form.adscripcion" type="text"
+              class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Contacto de Emergencia</label>
+            <input v-model="form.contacto_emergencia" type="text" placeholder="Ej. 744 123 4567"
+              class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+          </div>
         </div>
       </div>
 
