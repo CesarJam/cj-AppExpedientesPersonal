@@ -22,7 +22,8 @@ const form = ref({
   adscripcion: '',
   estatus: 'Activo',
   foto_url: null,
-  contacto_emergencia: ''
+  contacto_emergencia: '',
+  comisionado: false
 })
 
 onMounted(() => {
@@ -68,6 +69,10 @@ const guardar = async () => {
   try {
     cargando.value = true
     let errorQuery;
+    //Forzamos RFC en mayusculas
+    if (form.value.rfc) {
+      form.value.rfc = form.value.rfc.toUpperCase().trim()
+    }
 
     // 1. Limpieza de Storage: Si cambió la foto o la borró, eliminamos la anterior
     const fotoAnteriorUrl = props.empleadoSeleccionado?.foto_url
@@ -223,7 +228,7 @@ const eliminar = async () => {
         </div>
         <div>
           <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">RFC</label>
-          <input v-model="form.rfc" type="text"
+          <input v-model="form.rfc" type="text" maxlength="13"
             class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 uppercase transition-colors">
         </div>
         <div class="grid grid-cols-2 gap-4">
@@ -246,14 +251,40 @@ const eliminar = async () => {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Adscripción</label>
-            <input v-model="form.adscripcion" type="text"
+            <select v-model="form.adscripcion"
               class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+              <option value="" disabled>Seleccione un área...</option>
+              <option value="JEFATURA">JEFATURA</option>
+              <option value="DELEGACIÓN">DELEGACIÓN</option>
+              <option value="SLEN">SLEN</option>
+              <option value="SAPJPE">SAPJPE</option>
+              <option value="SAPJE">SAPJE</option>
+              <option value="UG">UG</option>
+            </select>
           </div>
           <div>
             <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Contacto de Emergencia</label>
-            <input v-model="form.contacto_emergencia" type="text" placeholder="Ej. 744 123 4567"
-              class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+            <input 
+              v-model="form.contacto_emergencia" 
+              type="text" 
+              maxlength="10"
+              @input="form.contacto_emergencia = form.contacto_emergencia.replace(/\D/g, '')"
+              placeholder="Ej. 7441234567"
+              class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+            >
           </div>
+
+          <div
+            class="mt-4 flex items-center bg-blue-50 dark:bg-gray-700/50 p-3 rounded-lg border border-blue-100 dark:border-gray-600">
+            <input v-model="form.comisionado" type="checkbox" id="comisionado"
+              class="w-5 h-5 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-600 dark:border-gray-500 cursor-pointer transition-colors">
+            <label for="comisionado"
+              class="ml-3 text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+              Personal Comisionado
+            </label>
+          </div>
+
+
         </div>
       </div>
 

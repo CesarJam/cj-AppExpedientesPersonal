@@ -8,9 +8,10 @@ const emit = defineEmits(['seleccionar'])
 const empleados = ref([])
 const cargando = ref(true)
 const mostrarModal = ref(false)
-const empleadoAEditar = ref(null) // Nueva variable para el empleado seleccionado
+const empleadoAEditar = ref(null) 
 const busqueda = ref('')
 const filtroPuesto = ref('')
+const filtroComisionado = ref(false)
 
 const empleadosFiltrados = computed(() => {
   const texto = busqueda.value.toLowerCase().trim()
@@ -28,8 +29,12 @@ const empleadosFiltrados = computed(() => {
     const coincidePuesto = puestoSeleccionado === '' ||
       (emp.puesto || '').toUpperCase().includes(puestoSeleccionado)
 
+    // 3. Verificamos si coincide con el checkbox de Comisionado
+    // Si el check está apagado (false), dejamos pasar a todos. Si está prendido (true), solo pasan los comisionados.
+    const coincideComisionado = !filtroComisionado.value || emp.comisionado === true
+
     // El empleado debe cumplir con AMBAS condiciones para aparecer en la tabla
-    return coincideTexto && coincidePuesto
+    return coincideTexto && coincidePuesto && coincideComisionado
   })
 })
 
@@ -111,18 +116,15 @@ const exportarExcel = () => {
       <h1 class="text-2xl font-bold text-gray-800 dark:text-white transition-colors duration-300">Directorio de Personal
       </h1>
 
-      <div class="flex items-center gap-4 w-full md:w-auto">
+      <div class="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 w-full lg:w-auto">
 
-        <div class="relative w-full md:w-72">
-          <div
-            class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400 dark:text-gray-500">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <div class="relative w-full lg:w-64 xl:w-72 shrink-0">
+          <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400 dark:text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          <input v-model="busqueda" type="text" placeholder="Buscar por nombre, RFC o área..."
+          <input v-model="busqueda" type="text" placeholder="Buscar por nombre, RFC..."
             class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400">
 
           <button v-if="busqueda" @click="busqueda = ''"
@@ -130,33 +132,42 @@ const exportarExcel = () => {
             &times;
           </button>
         </div>
-        <select v-model="filtroPuesto"
-          class="w-full sm:w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm font-medium">
-          <option value="">Todos los puestos</option>
-          <option value="SUN">S.U.N. (Supernumerario)</option>
-          <option value="BAS">B.A.S. (Base)</option>
-          <option value="CON">C.O.N. (Confianza)</option>
-        </select>
 
-        <button @click="exportarExcel" :disabled="empleadosFiltrados.length === 0"
-          class="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md transition font-medium whitespace-nowrap shrink-0 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Descargar directorio actual">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          <span class="hidden sm:inline">Exportar</span>
-        </button>
+        <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
+          <select v-model="filtroPuesto"
+            class="w-full sm:w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm font-medium">
+            <option value="">Todos los puestos</option>
+            <option value="SUN">S.U.N. (Supernumerario)</option>
+            <option value="BAS">B.A.S. (Base)</option>
+            <option value="CON">C.O.N. (Confianza)</option>
+          </select>
 
-        <button @click="abrirNuevo"
-          class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md transition font-medium whitespace-nowrap shrink-0 flex items-center gap-2"
-          title="Agregar nuevo empleado">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-          </svg>
-          <span class="hidden sm:inline">Nuevo Empleado</span>
-        </button>
+          <label class="flex items-center justify-center gap-2 cursor-pointer bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 px-3 py-2 rounded-lg shadow-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-600 w-full sm:w-auto shrink-0">
+            <input v-model="filtroComisionado" type="checkbox" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:bg-gray-600 dark:border-gray-500 cursor-pointer">
+            <span class="text-sm font-bold text-gray-700 dark:text-gray-200 select-none">Solo Comisionados</span>
+          </label>
+        </div>
+
+        <div class="flex gap-2 w-full lg:w-auto">
+          <button @click="exportarExcel" :disabled="empleadosFiltrados.length === 0"
+            class="flex-1 lg:flex-none justify-center flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md transition font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Descargar directorio actual">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span class="hidden sm:inline lg:hidden xl:inline">Exportar</span>
+          </button>
+
+          <button @click="abrirNuevo"
+            class="flex-1 lg:flex-none justify-center flex items-center gap-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md transition font-medium whitespace-nowrap"
+            title="Agregar nuevo empleado">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            <span>Nuevo</span>
+          </button>
+        </div>
+
       </div>
     </div>
 

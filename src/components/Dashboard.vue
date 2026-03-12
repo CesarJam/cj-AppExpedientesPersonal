@@ -46,7 +46,7 @@ const calcularMetricas = async () => {
         // Traemos TODOS los datos necesarios de los empleados activos
         const { data: empleados, error: errEmp } = await supabase
             .from('empleados')
-            .select('id, estatus, nombre_completo, puesto, adscripcion')
+            .select('id, estatus, nombre_completo, puesto, adscripcion, comisionado')
             .eq('estatus', 'Activo')
 
         if (errEmp) throw errEmp
@@ -92,7 +92,7 @@ const calcularMetricas = async () => {
             })
 
             // --- C. DETECCIÓN DE COMISIONADOS ---
-            if (adscripcionStr.includes('COMISIONADO')) {
+            if (emp.comisionado === true) {
                 comisionados.value.push(emp)
             }
         })
