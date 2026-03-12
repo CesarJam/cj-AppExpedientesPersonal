@@ -137,9 +137,9 @@ const exportarExcel = () => {
           <select v-model="filtroPuesto"
             class="w-full sm:w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm font-medium">
             <option value="">Todos los puestos</option>
-            <option value="SUN">S.U.N. (Supernumerario)</option>
-            <option value="BAS">B.A.S. (Base)</option>
-            <option value="CON">C.O.N. (Confianza)</option>
+            <option value="SUN">SUN (Supernumerario)</option>
+            <option value="BAS">BAS (Base)</option>
+            <option value="CON">CON (Confianza)</option>
           </select>
 
           <label class="flex items-center justify-center gap-2 cursor-pointer bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 px-3 py-2 rounded-lg shadow-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-600 w-full sm:w-auto shrink-0">
