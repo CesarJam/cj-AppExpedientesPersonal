@@ -11,7 +11,7 @@ const mostrarModal = ref(false)
 const empleadoAEditar = ref(null) 
 const busqueda = ref('')
 const filtroPuesto = ref('')
-const filtroComisionado = ref(false)
+const filtroComisionado = ref('')
 
 const empleadosFiltrados = computed(() => {
   const texto = busqueda.value.toLowerCase().trim()
@@ -30,8 +30,14 @@ const empleadosFiltrados = computed(() => {
       (emp.puesto || '').toUpperCase().includes(puestoSeleccionado)
 
     // 3. Verificamos si coincide con el checkbox de Comisionado
-    // Si el check está apagado (false), dejamos pasar a todos. Si está prendido (true), solo pasan los comisionados.
-    const coincideComisionado = !filtroComisionado.value || emp.comisionado === true
+    const esComisionado = emp.comisionado === true || String(emp.comisionado) === 'true' || (emp.adscripcion || '').toUpperCase().includes('COMISIONADO')
+    
+    let coincideComisionado = true // Por defecto (si es '') pasan todos
+    if (filtroComisionado.value === 'SI') {
+      coincideComisionado = esComisionado
+    } else if (filtroComisionado.value === 'NO') {
+      coincideComisionado = !esComisionado
+    }
 
     // El empleado debe cumplir con AMBAS condiciones para aparecer en la tabla
     return coincideTexto && coincidePuesto && coincideComisionado
@@ -142,10 +148,12 @@ const exportarExcel = () => {
             <option value="CON">CON (Confianza)</option>
           </select>
 
-          <label class="flex items-center justify-center gap-2 cursor-pointer bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 px-3 py-2 rounded-lg shadow-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-600 w-full sm:w-auto shrink-0">
-            <input v-model="filtroComisionado" type="checkbox" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:bg-gray-600 dark:border-gray-500 cursor-pointer">
-            <span class="text-sm font-bold text-gray-700 dark:text-gray-200 select-none">Solo Comisionados</span>
-          </label>
+          <select v-model="filtroComisionado"
+          class="w-full sm:w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm font-medium shrink-0">
+          <option value="">Todo el personal</option>
+          <option value="SI">Solo Comisionados</option>
+          <option value="NO">No Comisionados</option>
+        </select>
         </div>
 
         <div class="flex gap-2 w-full lg:w-auto">
