@@ -136,7 +136,10 @@ const subirDocumento = async () => {
         subiendo.value = true
         const archivo = archivoSeleccionado.value
 
-        const nombreLimpio = archivo.name.replace(/\s+/g, '_')
+        const nombreLimpio = archivo.name
+            .normalize("NFD") // Separa los acentos de las letras
+            .replace(/[\u0300-\u036f]/g, "") // Elimina los acentos y la tilde de la ñ (ñ -> n)
+            .replace(/[^a-zA-Z0-9.-]/g, '_') // Reemplaza espacios, paréntesis y símbolos raros por guiones bajos
         // Carpeta organizada por RFC y luego por Categoría
         //const rutaStorage = `${props.empleado.rfc}/${categoriaSeleccionada.value}/${Date.now()}_${nombreLimpio}`
         const categoriaLimpia = categoriaSeleccionada.value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_')
