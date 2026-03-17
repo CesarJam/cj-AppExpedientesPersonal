@@ -9,6 +9,7 @@ const emit = defineEmits(['volver'])
 const documentos = ref([])
 const subiendo = ref(false)
 const archivoSeleccionado = ref(null)
+const inputArchivo = ref(null)
 const docConfirmando = ref(null)
 const mensajeExito = ref('')
 
@@ -181,6 +182,7 @@ const subirDocumento = async () => {
         }, 3000)
         //alert('Documento guardado en ' + categoriaSeleccionada.value)
         archivoSeleccionado.value = null
+        if (inputArchivo.value) inputArchivo.value.value = ''
         cargarDocumentos()
     } catch (error) {
         alert('Error: ' + error.message)
@@ -211,7 +213,8 @@ const eliminarDocumento = async (doc) => {
                 rfc_empleado: props.empleado.rfc
             }
         )
-
+        archivoSeleccionado.value = null 
+        if (inputArchivo.value) inputArchivo.value.value = ''
         // Éxito
         docConfirmando.value = null // Limpiamos el estado
         cargarDocumentos()
@@ -331,9 +334,9 @@ onMounted(cargarDocumentos)
                                 <div class="flex items-center gap-3 shrink-0">
 
                                     <template v-if="docConfirmando !== doc.id">
-                                        <button @click="abrirVisorPDF(doc.url_storage)"
-                                            class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline uppercase transition">Abrir
-                                            PDF</button>
+                                        <button @click="abrirVisorPDF(doc.url_storage)" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline uppercase transition">
+                                            Ver Archivo
+                                        </button>
 
                                         <button @click="docConfirmando = doc.id"
                                             class="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30"
@@ -404,9 +407,9 @@ onMounted(cargarDocumentos)
                         </div>
 
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">2. Archivo PDF</label>
+                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">2. Archivo (PDF, JPG, PNG)</label>
                             <div class="border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition relative">
-                                <input type="file" @change="manejarSeleccion" accept=".pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                                <input ref="inputArchivo" type="file" @change="manejarSeleccion" accept=".pdf, .png, .jpg, .jpeg, image/jpeg, image/png" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                                 <p class="text-xs text-gray-500 dark:text-gray-400">
                                     {{ archivoSeleccionado ? archivoSeleccionado.name : 'Click para buscar archivo' }}
                                 </p>
