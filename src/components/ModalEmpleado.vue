@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { supabase } from '../supabase'
 import { registrarAuditoria } from '../utils/auditoria'
 
@@ -17,22 +17,37 @@ const fotoEliminada = ref(false) // Para saber si le dio clic a la "X"
 
 const form = ref({
   nombre_completo: '',
+  numero_empleado: '',
   rfc: '',
   puesto: '',
   adscripcion: '',
   estatus: 'Activo',
   foto_url: null,
   contacto_emergencia: '',
-  comisionado: false
+  comisionado: false,
+  tipo_comision: '',
+  observaciones: ''
 })
 
 onMounted(() => {
+  document.addEventListener('keydown', manejarTeclaEsc)
   if (props.empleadoSeleccionado) {
     modoEdicion.value = true
     form.value = { ...props.empleadoSeleccionado }
     previewFoto.value = props.empleadoSeleccionado.foto_url
   }
 })
+onUnmounted(() => {
+  document.removeEventListener('keydown', manejarTeclaEsc)
+})
+
+// --- Cerrar con tecla ESC ---
+const manejarTeclaEsc = (e) => {
+  if (e.key === 'Escape') {
+    emit('cerrar')
+  }
+}
+
 
 const manejarFoto = (event) => {
   const file = event.target.files[0]
@@ -179,16 +194,16 @@ const eliminar = async () => {
     class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center p-4 z-50 backdrop-blur-sm transition-colors duration-300">
 
     <div
-      class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden transition-colors duration-300">
+      class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden transition-colors duration-300 flex flex-col max-h-[90vh]">
 
       <div :class="modoEdicion ? 'bg-amber-500 dark:bg-amber-600' : 'bg-blue-600 dark:bg-blue-700'"
-        class="px-6 py-4 flex justify-between items-center text-white transition-colors duration-300">
+        class="px-6 py-4 flex justify-between items-center text-white transition-colors duration-300 shrink-0">
         <h3 class="font-bold text-lg">{{ modoEdicion ? 'Editar Empleado' : 'Nuevo Empleado' }}</h3>
         <button @click="$emit('cerrar')"
-          class="text-2xl hover:text-gray-200 dark:hover:text-gray-300 transition">&times;</button>
+          class="text-2xl hover:text-gray-200 dark:hover:text-gray-300 transition focus:outline-none">&times;</button>
       </div>
 
-      <div class="p-6 space-y-4">
+      <div class="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
 
         <div class="flex flex-col items-center mb-2">
           <div class="relative group">
@@ -226,10 +241,21 @@ const eliminar = async () => {
           <input v-model="form.nombre_completo" type="text"
             class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
         </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">RFC</label>
-          <input v-model="form.rfc" type="text" maxlength="13"
-            class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 uppercase transition-colors">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Número de Empleado</label>
+            <input v-model="form.numero_empleado" type="text"
+              @input="form.numero_empleado = form.numero_empleado.replace(/\D/g, '')"
+              class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              placeholder="Ej. 12345">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">RFC</label>
+            <input v-model="form.rfc" type="text" maxlength="13"
+              @input="form.rfc = form.rfc.toUpperCase().trim()"
+              class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 uppercase transition-colors"
+              placeholder="Ej. ABCD123456XYZ">
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
@@ -256,10 +282,10 @@ const eliminar = async () => {
               <option value="" disabled>Seleccione un área...</option>
               <option value="JEFATURA">JEFATURA</option>
               <option value="DELEGACIÓN">DELEGACIÓN</option>
-              <option value="SLEN">SLEN</option>
               <option value="SAPJPE">SAPJPE</option>
+              <option value="SAPJPE(ACAPULCO)">SAPJPE(ACAPULCO)</option>
               <option value="SAPJE">SAPJE</option>
-              <option value="UG">UG</option>
+              <option value="UNIDAD DE GÉNERO">UNIDAD DE GÉNERO</option>
             </select>
           </div>
           <div>
@@ -273,23 +299,39 @@ const eliminar = async () => {
               class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
             >
           </div>
-
-          <div
-            class="mt-4 flex items-center bg-blue-50 dark:bg-gray-700/50 p-3 rounded-lg border border-blue-100 dark:border-gray-600">
-            <input v-model="form.comisionado" type="checkbox" id="comisionado"
-              class="w-5 h-5 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-600 dark:border-gray-500 cursor-pointer transition-colors">
-            <label for="comisionado"
-              class="ml-3 text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
-              Personal Comisionado
-            </label>
+        </div> <div class="mt-2">
+          <div class="bg-blue-50 dark:bg-gray-700/50 p-3 rounded-lg border border-blue-100 dark:border-gray-600 transition-all">
+            <div class="flex items-center">
+              <input v-model="form.comisionado" type="checkbox" id="comisionado"
+                class="w-5 h-5 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-600 dark:border-gray-500 cursor-pointer transition-colors">
+              <label for="comisionado" class="ml-3 text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                Este empleado es Personal Comisionado
+              </label>
+            </div>
+            
+            <div v-if="form.comisionado" class="mt-3 pl-8 animate-fade-in">
+               <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Especifique el tipo de comisión</label>
+               <select v-model="form.tipo_comision" class="w-full bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-colors">
+                 <option value="" disabled>Seleccione el tipo...</option>
+                 <option value="Interno">Comisionado INTERNO (Viene de otra dependencia hacia aquí)</option>
+                 <option value="Externo">Comisionado EXTERNO (Es nuestro, pero va a otra dependencia)</option>
+               </select>
+            </div>
           </div>
-
-
         </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Observaciones / Notas Adicionales</label>
+          <textarea v-model="form.observaciones" rows="2"
+            class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 transition-colors resize-none"
+            placeholder="Ej. El empleado viene comisionado de la Secretaría de Finanzas..."></textarea>
+        </div>
+
+      
       </div>
 
       <div
-        class="bg-gray-50 dark:bg-gray-900/50 px-6 py-4 flex justify-between items-center border-t border-gray-200 dark:border-gray-700 transition-colors duration-300">
+        class="bg-gray-50 dark:bg-gray-900/50 px-6 py-4 flex justify-between items-center border-t border-gray-200 dark:border-gray-700 transition-colors duration-300 shrink-0">
         <div v-if="modoEdicion">
           <button v-if="!confirmandoEliminar" @click="confirmandoEliminar = true"
             class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm font-medium transition">

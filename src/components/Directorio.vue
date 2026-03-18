@@ -76,9 +76,10 @@ onMounted(obtenerEmpleados)
 const exportarExcel = () => {
   if (empleadosFiltrados.value.length === 0) return
 
-  const cabeceras = ['Nombre Completo', 'RFC', 'Puesto', 'Adscripción', 'Estatus']
+  const cabeceras = ['No. Empleado','Nombre Completo', 'RFC', 'Puesto', 'Adscripción', 'Estatus']
 
   const filas = empleadosFiltrados.value.map(emp => [
+    `"${emp.numero_empleado || ''}"`,
     `"${emp.nombre_completo || ''}"`,
     `"${emp.rfc || ''}"`,
     `"${emp.puesto || ''}"`,
@@ -188,7 +189,7 @@ const exportarExcel = () => {
             class="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs uppercase font-bold border-b border-gray-200 dark:border-gray-700">
             <tr>
               <th class="p-4">Nombre</th>
-              <th class="p-4">RFC</th>
+              <th class="p-4">RFC / Núm. Empleado</th>
               <th class="p-4">Puesto / Adscripción</th>
               <th class="p-4 text-center">Estatus</th>
               <th class="p-4 text-center">Acciones</th>
@@ -223,7 +224,12 @@ const exportarExcel = () => {
                   </span>
                 </div>
               </td>
-              <td class="p-4 text-xs font-mono text-gray-500 dark:text-gray-400">{{ emp.rfc }}</td>
+              <td class="p-4">
+                <div class="text-xs font-mono text-gray-500 dark:text-gray-400">{{ emp.rfc }}</div>
+                <div v-if="emp.numero_empleado" class="text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+                  {{ emp.numero_empleado }}
+                </div>
+              </td>
               <td class="p-4">
                 <div class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ emp.puesto }}</div>
                 <div class="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-tighter">{{ emp.adscripcion
@@ -276,7 +282,12 @@ const exportarExcel = () => {
               </div>
               <div>
                 <h3 class="font-bold text-gray-900 dark:text-white leading-tight">{{ emp.nombre_completo }}</h3>
-                <p class="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-bold">{{ emp.rfc }}</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <p class="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-bold">{{ emp.rfc }}</p>
+                  <span v-if="emp.numero_empleado" class="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded font-bold border border-blue-100 dark:border-blue-800">
+                    {{ emp.numero_empleado }}
+                  </span>
+                </div>
               </div>
             </div>
             <span

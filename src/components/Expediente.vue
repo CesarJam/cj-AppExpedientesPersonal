@@ -253,7 +253,12 @@ onMounted(cargarDocumentos)
                         {{ empleado.nombre_completo.charAt(0) }}
                     </div>
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">{{ empleado.nombre_completo }}</h2>
+                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">{{ empleado.nombre_completo }}
+                            <span v-if="empleado.numero_empleado" class="ml-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-lg font-mono border border-gray-200 dark:border-gray-600 inline-block align-middle">
+                            #{{ empleado.numero_empleado }}
+                          </span>
+
+                        </h2>
                         <div class="flex flex-col sm:flex-row sm:gap-4 mt-1">
                             <p class="text-sm text-gray-500 dark:text-gray-400">RFC: <span
                                     class="font-mono text-gray-700 dark:text-gray-300">{{ empleado.rfc }}</span></p>
@@ -293,6 +298,14 @@ onMounted(cargarDocumentos)
                 </div>
                 <p class="text-[11px] text-gray-400 mt-1.5 font-medium">{{ estadoExpediente.completados }} de {{
                     estadoExpediente.total }} documentos obligatorios subidos.</p>
+            </div><div v-if="empleado.observaciones" class="mt-4 w-full bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800/50 flex gap-3 animate-fade-in">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                    <p class="text-[10px] font-bold text-amber-800 dark:text-amber-500 uppercase tracking-wider mb-0.5">Observaciones</p>
+                    <p class="text-sm text-gray-700 dark:text-gray-300">{{ empleado.observaciones }}</p>
+                </div>
             </div>
         </div>
 
@@ -366,6 +379,7 @@ onMounted(cargarDocumentos)
                 </div>
             </div>
 
+            
 
 
             <div class="space-y-6 h-fit sticky top-24">
