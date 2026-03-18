@@ -282,6 +282,7 @@ const eliminar = async () => {
               <option value="" disabled>Seleccione un área...</option>
               <option value="JEFATURA">JEFATURA</option>
               <option value="DELEGACIÓN">DELEGACIÓN</option>
+              <option value="SLEN">SLEN</option>
               <option value="SAPJPE">SAPJPE</option>
               <option value="SAPJPE(ACAPULCO)">SAPJPE(ACAPULCO)</option>
               <option value="SAPJE">SAPJE</option>
