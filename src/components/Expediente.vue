@@ -227,7 +227,13 @@ const manejarSeleccion = (event) => {
     archivoSeleccionado.value = event.target.files[0]
 }
 
-onMounted(cargarDocumentos)
+onMounted(() => {
+    // 1. Forzamos al navegador a subir al inicio de la página inmediatamente
+    window.scrollTo(0, 0)
+    
+    // 2. Cargamos los documentos normalmente
+    cargarDocumentos()
+})
 </script>
 
 <template>

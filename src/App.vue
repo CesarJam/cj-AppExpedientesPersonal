@@ -149,9 +149,14 @@ const toggleDashboard = () => {
           <span>{{ mostrarDashboard ? 'Ver Directorio' : 'Métricas' }}</span>
         </button>
 
-        <button @click="cerrarSesion"
-          class="flex-1 sm:flex-none text-center text-xs md:text-sm text-red-500 hover:text-red-700 font-bold transition hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-2 sm:py-1.5 rounded-lg border border-transparent hover:border-red-100 dark:hover:border-red-900/40 bg-red-50/50 sm:bg-transparent dark:bg-red-900/10 sm:dark:bg-transparent">
-          Cerrar Sesión
+        <button @click="cerrarSesion" title="Cerrar Sesión"
+          class="flex items-center justify-center gap-2 shrink-0 sm:flex-none text-red-500 hover:text-red-700 font-bold transition hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-2 sm:py-1.5 rounded-lg border border-red-100 dark:border-red-900/40 bg-red-50  dark:bg-red-900/20 ">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+
+          <span class="hidden sm:inline text-xs md:text-sm">Cerrar Sesión</span>
         </button>
       </div>
     </nav>
