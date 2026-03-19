@@ -1,10 +1,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { supabase } from '../supabase'
-import ModalEmpleado from './ModalEmpleado.vue'
+import { supabase } from '../lib/supabase'
+import ModalEmpleado from '../components/ModalEmpleado.vue'
 import { registrarAuditoria } from '../utils/auditoria'
+import { useRouter } from 'vue-router'
 
-const emit = defineEmits(['seleccionar'])
 const empleados = ref([])
 const cargando = ref(true)
 const mostrarModal = ref(false)
@@ -12,6 +12,11 @@ const empleadoAEditar = ref(null)
 const busqueda = ref('')
 const filtroPuesto = ref('')
 const filtroComisionado = ref('')
+const router = useRouter()
+
+const verExpediente = (empleado) => {
+  router.push(`/expediente/${empleado.id}`)
+}
 
 const empleadosFiltrados = computed(() => {
   const texto = busqueda.value.toLowerCase().trim()
@@ -131,7 +136,7 @@ const exportarExcel = () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          <input v-model="busqueda" type="text" placeholder="Buscar por nombre, RFC..."
+          <input v-model="busqueda" type="text" placeholder="Buscar por nombre, RFC o Área..."
             class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400">
 
           <button v-if="busqueda" @click="busqueda = ''"
@@ -173,7 +178,6 @@ const exportarExcel = () => {
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
-            <span>Nuevo</span>
           </button>
         </div>
 
@@ -255,8 +259,7 @@ const exportarExcel = () => {
                     </svg>
                   </button>
 
-                  <button @click="$emit('seleccionar', emp)"
-                    class="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-4 py-1.5 rounded-lg text-xs font-black hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-all border border-blue-100 dark:border-blue-800">
+                  <button @click="verExpediente(emp)" class="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-4 py-1.5 rounded-lg text-xs font-black hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-all border border-blue-100 dark:border-blue-800">
                     EXPEDIENTE
                   </button>
                 </div>
@@ -310,8 +313,7 @@ const exportarExcel = () => {
           </div>
 
           <div class="flex gap-2">
-            <button @click="$emit('seleccionar', emp)"
-              class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-200 dark:shadow-none transition-transform active:scale-95">
+            <button @click="verExpediente(emp)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-200 dark:shadow-none transition-transform active:scale-95">
               Ver Expediente
             </button>
             <button @click="abrirEditar(emp)"

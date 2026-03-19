@@ -1,10 +1,15 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { supabase } from '../supabase'
+import { supabase } from '../lib/supabase'
 import { registrarAuditoria } from '../utils/auditoria'
+import { useRoute, useRouter } from 'vue-router'
 
-const props = defineProps(['empleado'])
-const emit = defineEmits(['volver'])
+// Inicializamos router y route
+const route = useRoute()
+const router = useRouter()
+
+const empleado = ref(null)
+const cargandoEmpleado = ref(true)
 
 const documentos = ref([])
 const subiendo = ref(false)
@@ -17,28 +22,24 @@ const mensajeExito = ref('')
 const pdfSeleccionado = ref(null)
 const abrirVisorPDF = async (urlCompleta) => {
     try {
-        // 1. Extraemos la ruta interna del archivo (le quitamos el dominio público)
         const rutaStorage = urlCompleta.split('/expedientes/')[1]
-
         if (!rutaStorage) throw new Error("Ruta de archivo no válida")
 
-        // 2. Pedimos a Supabase una URL firmada válida por 60 segundos
         const { data, error } = await supabase.storage
             .from('expedientes')
             .createSignedUrl(rutaStorage, 60)
 
         if (error) throw error
 
-        // 3. Pasamos esta URL temporal segura a nuestro visor
         pdfSeleccionado.value = data.signedUrl
 
-        // Opcional: Registrar en la auditoría que alguien abrió este documento
-        registrarAuditoria('VISUALIZAR', 'EXPEDIENTE_PDF', 'Abrió un documento confidencial', props.empleado.nombre_completo, { archivo: rutaStorage })
+        registrarAuditoria('VISUALIZAR', 'EXPEDIENTE_PDF', 'Abrió un documento confidencial', empleado.value.nombre_completo, { archivo: rutaStorage })
 
     } catch (error) {
         alert('Error al generar enlace seguro: ' + error.message)
     }
 }
+
 const cerrarVisorPDF = () => {
     pdfSeleccionado.value = null
 }
@@ -119,11 +120,34 @@ const estadoExpediente = computed(() => {
     return { porcentaje, completados, total, checklist }
 })
 
+const obtenerEmpleado = async () => {
+    try {
+        cargandoEmpleado.value = true
+        // route.params.id viene de la URL (ej: /expediente/123 -> id es 123)
+        const { data, error } = await supabase
+            .from('empleados')
+            .select('*')
+            .eq('id', route.params.id)
+            .single()
+
+        if (error) throw error
+        empleado.value = data
+        
+        // Una vez que tenemos el empleado, cargamos sus documentos
+        cargarDocumentos()
+    } catch (error) {
+        alert('Error al cargar empleado: ' + error.message)
+        router.push('/') // Si falla, lo regresamos al directorio
+    } finally {
+        cargandoEmpleado.value = false
+    }
+}
+
 const cargarDocumentos = async () => {
     const { data, error } = await supabase
         .from('documentos')
         .select('*')
-        .eq('empleado_id', props.empleado.id)
+        .eq('empleado_id', empleado.value.id)
         .order('created_at', { ascending: false })
 
     if (error) alert('Error: ' + error.message)
@@ -138,13 +162,14 @@ const subirDocumento = async () => {
         const archivo = archivoSeleccionado.value
 
         const nombreLimpio = archivo.name
-            .normalize("NFD") // Separa los acentos de las letras
-            .replace(/[\u0300-\u036f]/g, "") // Elimina los acentos y la tilde de la ñ (ñ -> n)
-            .replace(/[^a-zA-Z0-9.-]/g, '_') // Reemplaza espacios, paréntesis y símbolos raros por guiones bajos
-        // Carpeta organizada por RFC y luego por Categoría
-        //const rutaStorage = `${props.empleado.rfc}/${categoriaSeleccionada.value}/${Date.now()}_${nombreLimpio}`
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-zA-Z0-9.-]/g, '_')
+        
         const categoriaLimpia = categoriaSeleccionada.value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_')
-        const rutaStorage = `${props.empleado.rfc}/${categoriaLimpia}/${Date.now()}_${nombreLimpio}`
+        // Usamos empleado.value
+        const rutaStorage = `${empleado.value.rfc}/${categoriaLimpia}/${Date.now()}_${nombreLimpio}`
+        
         const { error: errorStorage } = await supabase.storage
             .from('expedientes')
             .upload(rutaStorage, archivo)
@@ -158,29 +183,28 @@ const subirDocumento = async () => {
         const { error: errorSQL } = await supabase
             .from('documentos')
             .insert([{
-                empleado_id: props.empleado.id,
+                empleado_id: empleado.value.id, // Usamos empleado.value
                 nombre_archivo: archivo.name,
                 url_storage: dataUrl.publicUrl,
-                tipo: categoriaSeleccionada.value // <--- Guardamos la categoría
+                tipo: categoriaSeleccionada.value
             }])
 
         if (errorSQL) throw errorSQL
+        
         registrarAuditoria(
             'CREAR',
             'EXPEDIENTE_PDF',
             `Subió un nuevo documento al expediente: ${categoriaSeleccionada.value}`,
-            props.empleado.nombre_completo,
+            empleado.value.nombre_completo, // Usamos empleado.value
             {
                 categoria: categoriaSeleccionada.value,
                 archivo: archivo.name,
-                rfc_empleado: props.empleado.rfc
+                rfc_empleado: empleado.value.rfc // Usamos empleado.value
             }
         )
         mensajeExito.value = `¡Guardado en ${categoriaSeleccionada.value}!`
-        setTimeout(() => {
-            mensajeExito.value = ''
-        }, 3000)
-        //alert('Documento guardado en ' + categoriaSeleccionada.value)
+        setTimeout(() => { mensajeExito.value = '' }, 3000)
+        
         archivoSeleccionado.value = null
         if (inputArchivo.value) inputArchivo.value.value = ''
         cargarDocumentos()
@@ -206,17 +230,16 @@ const eliminarDocumento = async (doc) => {
             'ELIMINAR',
             'EXPEDIENTE_PDF',
             `Eliminó un documento del expediente: ${doc.tipo || 'Sin Categoría'}`,
-            props.empleado.nombre_completo,
+            empleado.value.nombre_completo, // Usamos empleado.value
             {
                 categoria_eliminada: doc.tipo,
                 archivo_eliminado: doc.nombre_archivo,
-                rfc_empleado: props.empleado.rfc
+                rfc_empleado: empleado.value.rfc // Usamos empleado.value
             }
         )
         archivoSeleccionado.value = null 
         if (inputArchivo.value) inputArchivo.value.value = ''
-        // Éxito
-        docConfirmando.value = null // Limpiamos el estado
+        docConfirmando.value = null
         cargarDocumentos()
     } catch (error) {
         alert('Error al eliminar: ' + error.message)
@@ -227,19 +250,22 @@ const manejarSeleccion = (event) => {
     archivoSeleccionado.value = event.target.files[0]
 }
 
+const regresarAlDirectorio = () => {
+    router.push('/')
+}
+
 onMounted(() => {
     // 1. Forzamos al navegador a subir al inicio de la página inmediatamente
     window.scrollTo(0, 0)
     
-    // 2. Cargamos los documentos normalmente
-    cargarDocumentos()
+    obtenerEmpleado()
 })
 </script>
 
 <template>
     <div class="p-6 max-w-7xl mx-auto transition-colors duration-300">
 
-        <button @click="$emit('volver')"
+        <button @click="regresarAlDirectorio"
             class="mb-6 flex items-center text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition font-medium">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor" stroke-width="2">
@@ -247,6 +273,11 @@ onMounted(() => {
             </svg>
             Regresar al Directorio
         </button>
+        <!-- PANTALLA DE CARGA  -->
+        <div v-if="cargandoEmpleado" class="text-center py-10">
+            <p class="text-gray-500 font-medium animate-pulse">Cargando expediente...</p>
+        </div>
+        <div v-if="empleado && !cargandoEmpleado">
 
         <div
             class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-6 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
@@ -314,7 +345,7 @@ onMounted(() => {
                 </div>
             </div>
         </div>
-
+        </div>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
 

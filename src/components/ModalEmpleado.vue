@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { supabase } from '../supabase'
+import { supabase } from '../lib/supabase'
 import { registrarAuditoria } from '../utils/auditoria'
 
 const props = defineProps(['empleadoSeleccionado'])
