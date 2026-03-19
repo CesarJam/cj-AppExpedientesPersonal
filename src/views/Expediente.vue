@@ -11,6 +11,8 @@ const router = useRouter()
 const empleado = ref(null)
 const cargandoEmpleado = ref(true)
 
+const empleadoNoEncontrado = ref(false)
+
 const documentos = ref([])
 const subiendo = ref(false)
 const archivoSeleccionado = ref(null)
@@ -123,21 +125,43 @@ const estadoExpediente = computed(() => {
 const obtenerEmpleado = async () => {
     try {
         cargandoEmpleado.value = true
-        // route.params.id viene de la URL (ej: /expediente/123 -> id es 123)
+        empleadoNoEncontrado.value = false
+        empleado.value = null
+
+        const idEnUrl = route.params.id
+
+        // 1. VALIDACIÓN PROACTIVA DEL UUID
+        // Esta expresión regular verifica que el ID tenga exactamente el formato UUID v4
+        const esUuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idEnUrl)
+
+        if (!esUuidValido) {
+            // Si no tiene formato de UUID, ni le preguntamos a Supabase. 
+            // Mostramos el 404 directamente.
+            empleadoNoEncontrado.value = true
+            cargandoEmpleado.value = false
+            return // Detenemos la función aquí
+        }
+
+        // 2. Si es válido, hacemos la consulta a Supabase
         const { data, error } = await supabase
             .from('empleados')
             .select('*')
-            .eq('id', route.params.id)
+            .eq('id', idEnUrl)
             .single()
 
         if (error) throw error
+
         empleado.value = data
-        
-        // Una vez que tenemos el empleado, cargamos sus documentos
         cargarDocumentos()
+
     } catch (error) {
-        alert('Error al cargar empleado: ' + error.message)
-        router.push('/') // Si falla, lo regresamos al directorio
+        // Manejo del error de "No encontrado"
+        if (error.code === 'PGRST116') {
+            empleadoNoEncontrado.value = true
+        } else {
+            // Este alert ahora solo se mostrará si hay un problema REAL (se cae el internet, etc.)
+            alert('Error al cargar empleado: ' + error.message)
+        }
     } finally {
         cargandoEmpleado.value = false
     }
@@ -165,11 +189,11 @@ const subirDocumento = async () => {
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "")
             .replace(/[^a-zA-Z0-9.-]/g, '_')
-        
+
         const categoriaLimpia = categoriaSeleccionada.value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_')
         // Usamos empleado.value
         const rutaStorage = `${empleado.value.rfc}/${categoriaLimpia}/${Date.now()}_${nombreLimpio}`
-        
+
         const { error: errorStorage } = await supabase.storage
             .from('expedientes')
             .upload(rutaStorage, archivo)
@@ -190,7 +214,7 @@ const subirDocumento = async () => {
             }])
 
         if (errorSQL) throw errorSQL
-        
+
         registrarAuditoria(
             'CREAR',
             'EXPEDIENTE_PDF',
@@ -204,7 +228,7 @@ const subirDocumento = async () => {
         )
         mensajeExito.value = `¡Guardado en ${categoriaSeleccionada.value}!`
         setTimeout(() => { mensajeExito.value = '' }, 3000)
-        
+
         archivoSeleccionado.value = null
         if (inputArchivo.value) inputArchivo.value.value = ''
         cargarDocumentos()
@@ -237,7 +261,7 @@ const eliminarDocumento = async (doc) => {
                 rfc_empleado: empleado.value.rfc // Usamos empleado.value
             }
         )
-        archivoSeleccionado.value = null 
+        archivoSeleccionado.value = null
         if (inputArchivo.value) inputArchivo.value.value = ''
         docConfirmando.value = null
         cargarDocumentos()
@@ -257,7 +281,7 @@ const regresarAlDirectorio = () => {
 onMounted(() => {
     // 1. Forzamos al navegador a subir al inicio de la página inmediatamente
     window.scrollTo(0, 0)
-    
+
     obtenerEmpleado()
 })
 </script>
@@ -265,6 +289,7 @@ onMounted(() => {
 <template>
     <div class="p-6 max-w-7xl mx-auto transition-colors duration-300">
 
+        <!-- BOTÓN REGRESAR -->
         <button @click="regresarAlDirectorio"
             class="mb-6 flex items-center text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition font-medium">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24"
@@ -273,249 +298,239 @@ onMounted(() => {
             </svg>
             Regresar al Directorio
         </button>
-        <!-- PANTALLA DE CARGA  -->
+
+        <!-- 1. PANTALLA DE CARGA -->
         <div v-if="cargandoEmpleado" class="text-center py-10">
             <p class="text-gray-500 font-medium animate-pulse">Cargando expediente...</p>
         </div>
-        <div v-if="empleado && !cargandoEmpleado">
 
-        <div
-            class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-6 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div class="flex items-center gap-4">
-                    <img v-if="empleado.foto_url" :src="empleado.foto_url"
-                        class="h-16 w-16 rounded-full object-cover shadow-sm border border-gray-200 dark:border-gray-600" />
-                    <div v-else
-                        class="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-2xl shadow-sm border border-blue-200 dark:border-blue-800">
-                        {{ empleado.nombre_completo.charAt(0) }}
-                    </div>
-                    <div>
-                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">{{ empleado.nombre_completo }}
-                            <span v-if="empleado.numero_empleado" class="ml-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-lg font-mono border border-gray-200 dark:border-gray-600 inline-block align-middle">
-                            #{{ empleado.numero_empleado }}
-                          </span>
-
-                        </h2>
-                        <div class="flex flex-col sm:flex-row sm:gap-4 mt-1">
-                            <p class="text-sm text-gray-500 dark:text-gray-400">RFC: <span
-                                    class="font-mono text-gray-700 dark:text-gray-300">{{ empleado.rfc }}</span></p>
-                            
-                            <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                </svg>
-                                Emergencia: 
-                                <span class="font-medium text-gray-700 dark:text-gray-300">
-                                    {{ empleado.contacto_emergencia || 'No registrado' }}
-                                </span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <span
-                    class="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-4 py-1.5 rounded-full text-sm font-bold border border-blue-100 dark:border-blue-800 shadow-sm">
-                    {{ empleado.adscripcion }}
-                </span>
-            </div>
-
-            <div class="mt-5 pt-5 border-t border-gray-100 dark:border-gray-700 w-full">
-                <div class="flex justify-between items-center mb-1.5">
-                    <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Estado del
-                        Expediente</span>
-                    <span class="text-sm font-black transition-colors"
-                        :class="estadoExpediente.porcentaje === 100 ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'">
-                        {{ estadoExpediente.porcentaje }}%
-                    </span>
-                </div>
-                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
-                    <div class="h-2.5 rounded-full transition-all duration-700 ease-out"
-                        :class="estadoExpediente.porcentaje === 100 ? 'bg-green-500' : 'bg-blue-600'"
-                        :style="`width: ${estadoExpediente.porcentaje}%`">
-                    </div>
-                </div>
-                <p class="text-[11px] text-gray-400 mt-1.5 font-medium">{{ estadoExpediente.completados }} de {{
-                    estadoExpediente.total }} documentos obligatorios subidos.</p>
-            </div><div v-if="empleado.observaciones" class="mt-4 w-full bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800/50 flex gap-3 animate-fade-in">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                    <p class="text-[10px] font-bold text-amber-800 dark:text-amber-500 uppercase tracking-wider mb-0.5">Observaciones</p>
-                    <p class="text-sm text-gray-700 dark:text-gray-300">{{ empleado.observaciones }}</p>
-                </div>
-            </div>
-        </div>
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-
-            <div class="lg:col-span-2 space-y-6">
-                <div v-for="(docs, categoria) in documentosAgrupados" :key="categoria">
-                    <div v-if="docs.length > 0" class="mb-2">
-                        <h3
-                            class="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-600"></span>
-                            {{ categoria }}
-                        </h3>
-
-                        <div
-                            class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700 transition-colors duration-300">
-
-                            <div v-if="docs.length === 0" class="p-4 text-sm text-gray-400 dark:text-gray-500 italic">
-                                Sin documentos cargados en esta sección.
-                            </div>
-
-                            <div v-for="doc in docs" :key="doc.id"
-                                class="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition group">
-
-                                <div class="flex items-center gap-3 truncate pr-4">
-                                    <div
-                                        class="text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded shrink-0">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                            viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                    </div>
-                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200 truncate"
-                                        :title="doc.nombre_archivo">{{ doc.nombre_archivo }}</span>
-                                </div>
-
-                                <div class="flex items-center gap-3 shrink-0">
-
-                                    <template v-if="docConfirmando !== doc.id">
-                                        <button @click="abrirVisorPDF(doc.url_storage)" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline uppercase transition">
-                                            Ver Archivo
-                                        </button>
-
-                                        <button @click="docConfirmando = doc.id"
-                                            class="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30"
-                                            title="Eliminar documento">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                                viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                    </template>
-
-                                    <template v-else>
-                                        <span
-                                            class="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase">¿Borrar?</span>
-                                        <button @click="eliminarDocumento(doc)"
-                                            class="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 text-xs px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-800/60 font-bold transition">Sí</button>
-                                        <button @click="docConfirmando = null"
-                                            class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition">No</button>
-                                    </template>
-
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-
+        <!-- 2. PANTALLA DE ERROR 404 -->
+        <div v-else-if="empleadoNoEncontrado" 
+            class="flex flex-col items-center justify-center text-center py-16 px-4 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 animate-fade-in">
             
+            <img 
+                src="../images/404.png" 
+                alt="Expediente no encontrado" 
+                class="w-48 sm:w-64 md:w-80 h-auto object-contain mb-8 drop-shadow-sm rounded-md transition-all duration-300"
+            >
 
+            <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white mb-3 tracking-tight">Expediente No Encontrado</h1>
+            <p class="text-gray-600 dark:text-gray-400 max-w-md mb-8">El empleado con el ID <span class="font-mono bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs text-gray-800 dark:text-gray-200">{{ route.params.id }}</span> no existe en el sistema o el enlace es incorrecto.</p>
+            
+            <button @click="regresarAlDirectorio" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-md">
+                Regresar al Directorio
+            </button>
+        </div>
 
-            <div class="space-y-6 h-fit sticky top-24">
-                
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-                    <h3 class="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                        </svg>
-                        Checklist de Requisitos
-                    </h3>
-
-                    <div class="max-h-64 overflow-y-auto pr-2 space-y-2.5 custom-scrollbar">
-                        <div v-for="item in estadoExpediente.checklist" :key="item.nombre" class="flex items-start gap-3">
-                            <div class="mt-0.5 shrink-0">
-                                <svg v-if="item.completado" class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                                </svg>
-                                <svg v-else class="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </div>
-                            <span class="text-xs leading-tight" :class="item.completado ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-200 font-medium'">
-                                {{ item.nombre }}
-                            </span>
+        <!-- 3. CONTENIDO PRINCIPAL (Se muestra solo si hay empleado) -->
+        <div v-else-if="empleado">
+            
+            <!-- Tarjeta de Info -->
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-6 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div class="flex items-center gap-4">
+                        <img v-if="empleado.foto_url" :src="empleado.foto_url"
+                            class="h-16 w-16 rounded-full object-cover shadow-sm border border-gray-200 dark:border-gray-600" />
+                        <div v-else
+                            class="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-2xl shadow-sm border border-blue-200 dark:border-blue-800">
+                            {{ empleado.nombre_completo.charAt(0) }}
                         </div>
-                    </div>
-                </div>
-
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-                    <h3 class="font-bold text-gray-800 dark:text-white mb-4">Cargar Documento</h3>
-
-                    <div class="space-y-4">
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">1. Seleccionar Categoría</label>
-                            <select v-model="categoriaSeleccionada" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-colors">
-                                <option v-for="cat in CATEGORIAS" :key="cat" :value="cat">{{ cat }}</option>
-                            </select>
-                        </div>
+                            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">{{ empleado.nombre_completo }}
+                                <span v-if="empleado.numero_empleado"
+                                    class="ml-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-lg font-mono border border-gray-200 dark:border-gray-600 inline-block align-middle">
+                                    #{{ empleado.numero_empleado }}
+                                </span>
+                            </h2>
+                            <div class="flex flex-col sm:flex-row sm:gap-4 mt-1">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">RFC: <span
+                                        class="font-mono text-gray-700 dark:text-gray-300">{{ empleado.rfc }}</span></p>
 
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">2. Archivo (PDF, JPG, PNG)</label>
-                            <div class="border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition relative">
-                                <input ref="inputArchivo" type="file" @change="manejarSeleccion" accept=".pdf, .png, .jpg, .jpeg, image/jpeg, image/png" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                                <p class="text-xs text-gray-500 dark:text-gray-400">
-                                    {{ archivoSeleccionado ? archivoSeleccionado.name : 'Click para buscar archivo' }}
+                                <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-400" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                    </svg>
+                                    Emergencia:
+                                    <span class="font-medium text-gray-700 dark:text-gray-300">
+                                        {{ empleado.contacto_emergencia || 'No registrado' }}
+                                    </span>
                                 </p>
                             </div>
                         </div>
+                    </div>
+                    <span
+                        class="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-4 py-1.5 rounded-full text-sm font-bold border border-blue-100 dark:border-blue-800 shadow-sm">
+                        {{ empleado.adscripcion }}
+                    </span>
+                </div>
 
-                        <button @click="subirDocumento" :disabled="!archivoSeleccionado || subiendo" class="w-full bg-blue-600 dark:bg-blue-700 text-white font-bold py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition disabled:opacity-50">
-                            {{ subiendo ? 'Guardando...' : 'Subir al Expediente' }}
-                        </button>
+                <div class="mt-5 pt-5 border-t border-gray-100 dark:border-gray-700 w-full">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Estado
+                            del Expediente</span>
+                        <span class="text-sm font-black transition-colors"
+                            :class="estadoExpediente.porcentaje === 100 ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'">
+                            {{ estadoExpediente.porcentaje }}%
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                        <div class="h-2.5 rounded-full transition-all duration-700 ease-out"
+                            :class="estadoExpediente.porcentaje === 100 ? 'bg-green-500' : 'bg-blue-600'"
+                            :style="`width: ${estadoExpediente.porcentaje}%`">
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-1.5 font-medium">{{ estadoExpediente.completados }} de {{
+                        estadoExpediente.total }} documentos obligatorios subidos.</p>
+                </div>
+                <div v-if="empleado.observaciones"
+                    class="mt-4 w-full bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800/50 flex gap-3 animate-fade-in">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500 shrink-0 mt-0.5" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <p class="text-[10px] font-bold text-amber-800 dark:text-amber-500 uppercase tracking-wider mb-0.5">Observaciones</p>
+                        <p class="text-sm text-gray-700 dark:text-gray-300">{{ empleado.observaciones }}</p>
+                    </div>
+                </div>
+            </div>
 
-                        <div v-if="mensajeExito" class="mt-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-lg flex items-center gap-2 text-sm font-medium animate-fade-in">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 text-green-500 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {{ mensajeExito }}
+            <!-- Grid de Documentos y Subida -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Lista de Archivos -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div v-for="(docs, categoria) in documentosAgrupados" :key="categoria">
+                        <div v-if="docs.length > 0" class="mb-2">
+                            <h3 class="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-600"></span>
+                                {{ categoria }}
+                            </h3>
+
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700 transition-colors duration-300">
+                                <div v-for="doc in docs" :key="doc.id" class="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition group">
+                                    <div class="flex items-center gap-3 truncate pr-4">
+                                        <div class="text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                        </div>
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200 truncate" :title="doc.nombre_archivo">{{ doc.nombre_archivo }}</span>
+                                    </div>
+
+                                    <div class="flex items-center gap-3 shrink-0">
+                                        <template v-if="docConfirmando !== doc.id">
+                                            <button @click="abrirVisorPDF(doc.url_storage)" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline uppercase transition">Ver Archivo</button>
+                                            <button @click="docConfirmando = doc.id" class="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30" title="Eliminar documento">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </template>
+
+                                        <template v-else>
+                                            <span class="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase">¿Borrar?</span>
+                                            <button @click="eliminarDocumento(doc)" class="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 text-xs px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-800/60 font-bold transition">Sí</button>
+                                            <button @click="docConfirmando = null" class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition">No</button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-            </div>
 
-        </div>
+                <!-- Panel Lateral (Checklist y Formulario) -->
+                <div class="space-y-6 h-fit sticky top-24">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                        <h3 class="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                            Checklist de Requisitos
+                        </h3>
 
-        <div v-if="pdfSeleccionado"
-            class="fixed inset-0 bg-black/80 flex flex-col z-[100] backdrop-blur-sm animate-fade-in">
+                        <div class="max-h-64 overflow-y-auto pr-2 space-y-2.5 custom-scrollbar">
+                            <div v-for="item in estadoExpediente.checklist" :key="item.nombre" class="flex items-start gap-3">
+                                <div class="mt-0.5 shrink-0">
+                                    <svg v-if="item.completado" class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <svg v-else class="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </div>
+                                <span class="text-xs leading-tight" :class="item.completado ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-200 font-medium'">
+                                    {{ item.nombre }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                        <h3 class="font-bold text-gray-800 dark:text-white mb-4">Cargar Documento</h3>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">1. Seleccionar Categoría</label>
+                                <select v-model="categoriaSeleccionada" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-colors">
+                                    <option v-for="cat in CATEGORIAS" :key="cat" :value="cat">{{ cat }}</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">2. Archivo (PDF, JPG, PNG)</label>
+                                <div class="border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition relative">
+                                    <input ref="inputArchivo" type="file" @change="manejarSeleccion" accept=".pdf, .png, .jpg, .jpeg, image/jpeg, image/png" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ archivoSeleccionado ? archivoSeleccionado.name : 'Click para buscar archivo' }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button @click="subirDocumento" :disabled="!archivoSeleccionado || subiendo" class="w-full bg-blue-600 dark:bg-blue-700 text-white font-bold py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition disabled:opacity-50">
+                                {{ subiendo ? 'Guardando...' : 'Subir al Expediente' }}
+                            </button>
+
+                            <div v-if="mensajeExito" class="mt-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-lg flex items-center gap-2 text-sm font-medium animate-fade-in">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 text-green-500 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {{ mensajeExito }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div> <!-- Fin del Grid -->
+        </div> <!-- Fin de v-else-if="empleado" -->
+
+        <!-- 4. MODAL DEL VISOR PDF (Este va suelto, no depende del empleado porque es un overlay por encima de todo) -->
+        <div v-if="pdfSeleccionado" class="fixed inset-0 bg-black/80 flex flex-col z-[100] backdrop-blur-sm animate-fade-in">
             <div class="flex justify-between items-center p-4 text-white bg-gray-900 shadow-md">
                 <div class="flex items-center gap-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                     <h3 class="font-bold text-lg tracking-wide">Visor de Documento</h3>
                 </div>
 
                 <div class="flex items-center gap-4">
-                    <a :href="pdfSeleccionado" target="_blank"
-                        class="text-xs font-bold bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg transition border border-gray-700 hover:border-gray-600">
+                    <a :href="pdfSeleccionado" target="_blank" class="text-xs font-bold bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg transition border border-gray-700 hover:border-gray-600">
                         Abrir en pestaña externa
                     </a>
-                    <button @click="cerrarVisorPDF"
-                        class="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-800 transition"
-                        title="Cerrar visor">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12" />
+                    <button @click="cerrarVisorPDF" class="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-800 transition" title="Cerrar visor">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
             </div>
 
             <div class="flex-1 w-full p-2 md:p-6 pt-2">
-                <iframe :src="pdfSeleccionado" class="w-full h-full rounded-xl bg-white shadow-2xl border-0"
-                    title="Visor PDF"></iframe>
+                <iframe :src="pdfSeleccionado" class="w-full h-full rounded-xl bg-white shadow-2xl border-0" title="Visor PDF"></iframe>
             </div>
         </div>
 
