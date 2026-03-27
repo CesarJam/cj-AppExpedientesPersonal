@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { supabase } from '../lib/supabase'
 import { registrarAuditoria } from '../utils/auditoria'
 import { useRoute, useRouter } from 'vue-router'
@@ -44,6 +44,13 @@ const abrirVisorPDF = async (urlCompleta) => {
 
 const cerrarVisorPDF = () => {
     pdfSeleccionado.value = null
+}
+
+// Función para cerrar con la tecla ESC ---
+const manejarTeclaEsc = (e) => {
+    if (e.key === 'Escape' && pdfSeleccionado.value) {
+        cerrarVisorPDF()
+    }
 }
 
 // 1. LISTA DE CATEGORÍAS
@@ -282,7 +289,15 @@ onMounted(() => {
     // 1. Forzamos al navegador a subir al inicio de la página inmediatamente
     window.scrollTo(0, 0)
 
+    // 2. Encendemos el escuchador de la tecla ESC
+    document.addEventListener('keydown', manejarTeclaEsc)
+
     obtenerEmpleado()
+})
+
+// 3. Apagamos el escuchador cuando salimos de la vista de Expediente
+onUnmounted(() => {
+    document.removeEventListener('keydown', manejarTeclaEsc)
 })
 </script>
 
