@@ -50,7 +50,7 @@ Plataforma web integral para la administración del directorio de personal y la 
 
 1. Clonar el repositorio:
     ```
-    git clone [https://github.com/tu-usuario/tu-repositorio.git](https://github.com/tu-usuario/tu-repositorio.git)
+    git clone https://github.com/CesarJam/cj-AppExpedientesPersonal
     ```
 
 2. Instalar dependencias:
