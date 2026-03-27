@@ -34,7 +34,7 @@ Plataforma web integral para la administración del directorio de personal y la 
 * Soporte para múltiples formatos: `.pdf`, `.png`, `.jpg`, `.jpeg`.
 
 ### 🎨 Diseño y Experiencia de Usuario (UX/UI)
-* **100% Responsivo:** Navbar y sistema de grillas que se adaptan dinámicamente desde pantallas ultra anchas hasta teléfonos móviles.
+* **100% Responsivo:** Navbar y sistema de grill que se adaptan dinámicamente desde pantallas ultra anchas hasta teléfonos móviles.
 * **Modo Oscuro/Claro:** Integrado al sistema con persistencia en el navegador (`localStorage`).
 * **Navegación Fluida:** Atajos de teclado (`ESC`) para cerrar modales, auto-scroll al inicio al cambiar de vistas y barras de desplazamiento (scroll) independientes para modales largos.
 
