@@ -62,8 +62,13 @@ onMounted(() => {
   supabase.auth.onAuthStateChange((_event, _session) => {
     session.value = _session
     if (_session) {
-      cargandoVerificacion.value = true
-      verificarPermisos(_session.user.email)
+      // LA MAGIA: Solo verificamos permisos y mostramos la pantalla de carga 
+      // si aún NO hemos confirmado que es Admin en esta sesión activa.
+      // Si ya está dentro, el refresco del token ocurre en silencio sin borrar la vista.
+      if (!esAdmin.value) {
+        cargandoVerificacion.value = true
+        verificarPermisos(_session.user.email)
+      }
     } else {
       esAdmin.value = false
       cargandoVerificacion.value = false
