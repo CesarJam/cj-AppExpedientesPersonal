@@ -72,7 +72,7 @@ const iniciarSesion = async () => {
 
       <footer class="mt-8 text-center space-y-2">
         <p class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tighter">
-          Versión 1.0 &copy; 2026 cesarJam94
+          Versión 2.0 &copy; 2026 cesarJam94
         </p>
         <div class="flex justify-center opacity-40 grayscale hover:grayscale-0 transition duration-500">
           <img src="https://www.svgrepo.com/show/512317/github-142.svg" class="h-6 w-6 dark:invert" alt="Logo" />
